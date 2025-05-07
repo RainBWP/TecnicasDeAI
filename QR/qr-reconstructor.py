@@ -1,20 +1,6 @@
 from PIL import Image
 import os
 
-class QRCode:
-    def __init__(self, matrix: list):
-        self.matrix = matrix
-
-    def invert(self) -> None:
-        # Invert the QR code by flipping True to False and vice versa
-        self.matrix = [[not col for col in row] for row in self.matrix]
-
-    def simplify(self, dimensions: int) -> list:
-        # Simplify the QR code by removing rows and columns
-        simplified_matrix = self.matrix[9:-9]
-        simplified_matrix = [row[9:-9] for row in simplified_matrix]
-        return simplified_matrix
-
 def loadfile(path: str) -> list:
     with open(path, 'r') as file:
         lines = file.readlines()
