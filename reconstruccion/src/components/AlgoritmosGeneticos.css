@@ -1,0 +1,28 @@
+.carga-archivos {
+  display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+
+}
+
+.parametros-geneticos {
+  display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+}
+.parametros-geneticos input {
+  min-width: 100%;
+  padding: 10px;
+}
+
+.botones-ejecutar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0;
+}
+.botones-ejecutar button {
+  width: 100%;
+}
