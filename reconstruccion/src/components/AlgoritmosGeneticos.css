@@ -26,3 +26,21 @@
 .botones-ejecutar button {
   width: 100%;
 }
+
+.estadisticas {
+  display: grid;
+    grid-template-columns: 1fr 1fr ;
+    gap: 20px;
+
+}
+.estadisticas p {
+  padding: 0;
+  margin: 0;
+}
+
+.resultados {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 20px 0;
+  justify-items: end;
+}

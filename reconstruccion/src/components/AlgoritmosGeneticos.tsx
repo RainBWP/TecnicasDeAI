@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import GeneticoFileShow from './GeneticoFileShow';
 import './AlgoritmosGeneticos.css'
 
 // Definición de tipos
@@ -366,9 +367,9 @@ export function AlgoritmosGenetico() {
           <h2>Archivo Base</h2>
           <div>
             <input 
-              type="file" 
+              type="file"
               onChange={handleBaseFileChange}
-              accept=".txt,.csv"
+              accept=".txt"
               disabled={isRunning}
             />
             {baseFile && (
@@ -384,7 +385,7 @@ export function AlgoritmosGenetico() {
           <input 
             type="file" 
             onChange={handleResultFileChange}
-            accept=".txt,.csv"
+            accept=".txt"
             disabled={isRunning}
           />
           {resultFile && (
@@ -393,6 +394,15 @@ export function AlgoritmosGenetico() {
             </div>
           )}
         </div>
+      </div>
+
+      <div >
+        { (baseFile && resultFile) && (
+            <div className='botones-ejecutar'>
+              <GeneticoFileShow matrix={baseMatrix} />
+              <GeneticoFileShow matrix={resultMatrix} />
+            </div>
+        )}
       </div>
       
       {/* Parámetros del algoritmo */}
@@ -502,6 +512,62 @@ export function AlgoritmosGenetico() {
       <div>
         {/* Estadísticas de ejecución */}
         <div>
+
+        <h2>Vista Previa</h2>
+        {resultMatrix.length > 0 && (
+          <div>
+            {bestIndividual ? (
+              <GeneticoFileShow 
+              matrix={bestIndividual} 
+              modCellsize={4}/>
+            ) : (
+              <p>Ejecute el algoritmo para ver resultados</p>
+            )}
+            {bestFitness > 0 && <p><b>Fitness: </b> {bestFitness.toFixed(4)}</p>}
+          </div>
+        )}
+
+        {/* Estadísticas finales */}
+        {statistics.length > 0 && !isRunning && (
+          <div>
+            <h2>Estadísticas Finales</h2>
+            <div className='estadisticas'>
+              <div >
+                <h3>Todos los valores</h3>
+                <div className='resultados'>
+                  <p>Generaciones ejecutadas: </p>
+                  <b>{currentGeneration}</b>
+                  <p>Mejor aptitud: </p>
+                  <b>{bestFitness.toFixed(4)}</b>
+                  <p>Media de aptitud: </p>
+                  <b>{statistics[statistics.length - 1].avgFitness.toFixed(4)}</b>
+                  <p>Desviación estándar: </p>
+                  <b>{statistics[statistics.length - 1].stdDevFitness.toFixed(4)}</b>
+                </div>
+                
+              </div>
+              <div>
+                <h3>Mejores valores</h3>
+                <div className='resultados'>
+                  <p>Media de los mejores: </p>
+                  <b>
+                    {(statistics.reduce((sum, stat) => sum + stat.bestFitness, 0) / statistics.length).toFixed(4)}
+                  </b>
+                  <p>Desviación de los mejores: </p>
+                  <b>{
+                    Math.sqrt(
+                      statistics.reduce((sum, stat) => {
+                        const mean = statistics.reduce((s, st) => s + st.bestFitness, 0) / statistics.length;
+                        return sum + Math.pow(stat.bestFitness - mean, 2);
+                      }, 0) / statistics.length
+                    ).toFixed(4)
+                  }</b>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+          
           <h2>Estadísticas</h2>
           {isRunning && (
             <div>
@@ -538,46 +604,18 @@ export function AlgoritmosGenetico() {
         
         {/* Visualización del mejor individuo */}
         <div>
-          <h2>Mejor Individuo</h2>
-          {bestIndividual && (
-            <div>
-              <pre>
-                {outputContent}
-              </pre>
-            </div>
-          )}
+        <h2>Mejor Individuo</h2>
+        {bestIndividual && bestIndividual.length > 0 && (
+          <div>
+            <GeneticoFileShow matrix={bestIndividual} />
+            <h3>Contenido:</h3>
+            <pre>{matrixToString(bestIndividual)}</pre>
+          </div>
+        )}
         </div>
       </div>
       
-      {/* Estadísticas finales */}
-      {statistics.length > 0 && !isRunning && (
-        <div>
-          <h2>Estadísticas Finales</h2>
-          <div>
-            <div>
-              <h3>Todos los valores</h3>
-              <p>Generaciones ejecutadas: {currentGeneration}</p>
-              <p>Mejor aptitud: {bestFitness.toFixed(4)}</p>
-              <p>Media de aptitud: {statistics[statistics.length - 1].avgFitness.toFixed(4)}</p>
-              <p>Desviación estándar: {statistics[statistics.length - 1].stdDevFitness.toFixed(4)}</p>
-            </div>
-            <div>
-              <h3>Mejores valores</h3>
-              <p>Media de los mejores: {
-                (statistics.reduce((sum, stat) => sum + stat.bestFitness, 0) / statistics.length).toFixed(4)
-              }</p>
-              <p>Desviación de los mejores: {
-                Math.sqrt(
-                  statistics.reduce((sum, stat) => {
-                    const mean = statistics.reduce((s, st) => s + st.bestFitness, 0) / statistics.length;
-                    return sum + Math.pow(stat.bestFitness - mean, 2);
-                  }, 0) / statistics.length
-                ).toFixed(4)
-              }</p>
-            </div>
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }
