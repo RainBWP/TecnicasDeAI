@@ -12,7 +12,6 @@ interface GeneticParams {
   maxGenerations: number;
   crossoverRate: number;
   mutationRate: number;
-  elitismCount: number;
   tournamentSize: number;
 }
 
@@ -39,7 +38,6 @@ export function AlgoritmosGenetico() {
     maxGenerations: 500,
     crossoverRate: 0.8,
     mutationRate: 0.02,
-    elitismCount: 5,
     tournamentSize: 3
   });
   
@@ -50,6 +48,8 @@ export function AlgoritmosGenetico() {
   const [bestFitness, setBestFitness] = useState<number>(0);
   const [statistics, setStatistics] = useState<Statistics[]>([]);
   const [outputContent, setOutputContent] = useState<string>('');
+  const [generationsWithNoImprovement, setGenerationsWithNoImprovement] = useState<number>(0);
+  const [resetThreshold] = useState<number>(50); // Umbral para resetear (ajustable)
   
   // Referencias para cancelar la ejecución
   const runningRef = useRef<boolean>(false);
@@ -123,6 +123,7 @@ export function AlgoritmosGenetico() {
       return;
     }
     
+    // Validar para UI
     setIsRunning(true);
     runningRef.current = true;
     setStatistics([]);
@@ -150,6 +151,45 @@ export function AlgoritmosGenetico() {
         if (bestGenFitness > bestFitnessFound) {
           bestFitnessFound = bestGenFitness;
           bestIndividualFound = cloneIndividual(bestGenIndividual);
+          // Resetear contador cuando hay mejora
+          setGenerationsWithNoImprovement(0);
+        } else {
+          // Incrementar contador cuando no hay mejora
+          const newGenerationsWithNoImprovement = generationsWithNoImprovement + 1;
+          setGenerationsWithNoImprovement(newGenerationsWithNoImprovement);
+          
+          // Verificar si debemos resetear parte de la población
+          if (newGenerationsWithNoImprovement >= resetThreshold) {
+            console.log(`Reseteando población después de ${resetThreshold} generaciones sin mejora`);
+            
+            // Mantener los top 10% de individuos, resetear el resto
+            const eliteCount = Math.max(1, Math.floor(population.length * 0.1));
+            
+            // Ordenar índices por fitness
+            const sortedIndices = fitnessScores
+              .map((score, index) => ({ score, index }))
+              .sort((a, b) => b.score - a.score)
+              .map(item => item.index);
+            
+            // Crear nueva población con elites y el resto random
+            const newPopulation: Population = [];
+            
+            // Mantener elites
+            for (let i = 0; i < eliteCount; i++) {
+              newPopulation.push(cloneIndividual(population[sortedIndices[i]]));
+            }
+            
+            // Resetear el resto
+            for (let i = eliteCount; i < population.length; i++) {
+              newPopulation.push(createRandomIndividual(resultMatrix.length, resultMatrix[0].length));
+            }
+            
+            // Reemplazar población
+            population = newPopulation;
+            
+            // Resetear contador
+            setGenerationsWithNoImprovement(0);
+          }
         }
         
         // Calcular estadísticas
@@ -186,7 +226,6 @@ export function AlgoritmosGenetico() {
           fitnessScores, 
           params.crossoverRate, 
           params.mutationRate, 
-          params.elitismCount, 
           params.tournamentSize
         );
       }
@@ -228,11 +267,11 @@ export function AlgoritmosGenetico() {
   
   // Evaluar la población
   const evaluatePopulation = (population: Population, target: Individual): number[] => {
-    return population.map(individual => calculateFitness(individual, target));
+    return population.map(individual => calcularFitness(individual, target));
   };
   
   // Calcular aptitud de un individuo (porcentaje de coincidencia)
-  const calculateFitness = (individual: Individual, target: Individual): number => {
+  const calcularFitness = (individual: Individual, target: Individual): number => {
     let matches = 0;
     const totalCells = target.length * target[0].length;
     
@@ -253,26 +292,29 @@ export function AlgoritmosGenetico() {
     fitnessScores: number[], 
     crossoverRate: number, 
     mutationRate: number, 
-    elitismCount: number, 
     tournamentSize: number
   ): Population => {
     const newPopulation: Population = [];
     
-    // Elitismo: mantener los mejores individuos
-    const elites = getElites(population, fitnessScores, elitismCount);
-    for (const elite of elites) {
-      newPopulation.push(cloneIndividual(elite));
-    }
     
-    // Generar el resto de la población mediante selección, cruce y mutación
+    // Generar la nueva población mediante selección, cruce y mutación
     while (newPopulation.length < population.length) {
-      const parent1 = tournamentSelection(population, fitnessScores, tournamentSize);
-      const parent2 = tournamentSelection(population, fitnessScores, tournamentSize);
-      const offspring = crossover(parent1, parent2, crossoverRate);
-      mutate(offspring, mutationRate);
+      const padre1 = tournamentSelection(population, fitnessScores, tournamentSize);
+      const padre2 = ruleta(population, fitnessScores);
+
+      const offspring = crossover(padre1, padre2, crossoverRate);
+
+      mutacion(offspring, mutationRate);
+
+      const offspring2 = crossoverSinglePoint(padre1, padre2);
+
+      mutacion(offspring2, mutationRate);
+
       newPopulation.push(offspring);
+      if (newPopulation.length < population.length) {
+      newPopulation.push(offspring2);
+      }
     }
-    
     return newPopulation;
   };
   
@@ -297,26 +339,26 @@ export function AlgoritmosGenetico() {
   };
   
   // Operador de cruce
-  const crossover = (parent1: Individual, parent2: Individual, crossoverRate: number): Individual => {
+  const crossover = (padre1: Individual, padre2: Individual, crossoverRate: number): Individual => {
     if (Math.random() > crossoverRate) {
-      return cloneIndividual(parent1);
+      return cloneIndividual(padre1);
     }
     
-    const child: Individual = [];
+    const hijo: Individual = [];
     
-    for (let i = 0; i < parent1.length; i++) {
-      child[i] = [];
-      for (let j = 0; j < parent1[i].length; j++) {
+    for (let i = 0; i < padre1.length; i++) {
+      hijo[i] = [];
+      for (let j = 0; j < padre1[i].length; j++) {
         // Cruce uniforme: 50% de probabilidad para cada padre
-        child[i][j] = Math.random() < 0.5 ? parent1[i][j] : parent2[i][j];
+        hijo[i][j] = Math.random() < 0.5 ? padre1[i][j] : padre2[i][j];
       }
     }
     
-    return child;
+    return hijo;
   };
   
   // Operador de mutación
-  const mutate = (individual: Individual, mutationRate: number): void => {
+  const mutacion = (individual: Individual, mutationRate: number): void => {
     for (let i = 0; i < individual.length; i++) {
       for (let j = 0; j < individual[i].length; j++) {
         if (Math.random() < mutationRate) {
@@ -326,15 +368,57 @@ export function AlgoritmosGenetico() {
       }
     }
   };
-  
-  // Obtener los mejores individuos (élite)
-  const getElites = (population: Population, fitnessScores: number[], count: number): Individual[] => {
-    // Crear array de índices y ordenarlos por fitness
-    const indices = Array.from({ length: population.length }, (_, i) => i);
-    indices.sort((a, b) => fitnessScores[b] - fitnessScores[a]);
+
+  // Operador Crossover de un punto
+  const crossoverSinglePoint = (padre1: Individual, padre2: Individual): Individual => {
+    const rows = padre1.length;
+    const cols = padre1[0].length;
+    const crossoverPoint = Math.floor(.5 * rows);
     
-    // Obtener los mejores individuos
-    return indices.slice(0, count).map(index => population[index]);
+    const hijo: Individual = [];
+    
+    for (let i = 0; i < rows; i++) {
+      hijo[i] = [];
+      for (let j = 0; j < cols; j++) {
+        if (i < crossoverPoint) {
+          hijo[i][j] = padre1[i][j];
+        } else {
+          hijo[i][j] = padre2[i][j];
+        }
+      }
+    }
+    
+    return hijo;
+  };
+
+  // Operador Ruleta 
+  const ruleta = (population: Population,
+    fitnessScores: number[]
+  ): Individual => {
+    const totalFitness = fitnessScores.reduce((sum, fit) => sum + fit, 0);
+    const randomValue = Math.random() * totalFitness;
+    
+    let cumulativeSum = 0;
+    for (let i = 0; i < fitnessScores.length; i++) {
+      cumulativeSum += fitnessScores[i];
+      if (cumulativeSum >= randomValue) {
+        return cloneIndividual(population[i]);
+      }
+    }
+    
+    return cloneIndividual(population[fitnessScores.length - 1]); // En caso de error
+  };
+
+  // Crear individuo aleatorio
+  const createRandomIndividual = (rows: number, cols: number): Individual => {
+    const individual: Individual = [];
+    for (let i = 0; i < rows; i++) {
+      individual[i] = [];
+      for (let j = 0; j < cols; j++) {
+        individual[i][j] = Math.random() < 0.5 ? 0 : 1;
+      }
+    }
+    return individual;
   };
   
   // Clonar un individuo para evitar referencias
@@ -455,17 +539,6 @@ export function AlgoritmosGenetico() {
               min="0"
               max="1"
               step="0.001"
-            />
-          </div>
-          <div>
-            <label>Número de élites</label>
-            <input 
-              type="number" 
-              name="elitismCount" 
-              value={params.elitismCount} 
-              onChange={handleParamChange}
-              disabled={isRunning}
-              min="0"
             />
           </div>
           <div>
@@ -602,8 +675,8 @@ export function AlgoritmosGenetico() {
           )}
         </div>
         
-        {/* Visualización del mejor individuo */}
-        <div>
+        
+      {/* <div>
         <h2>Mejor Individuo</h2>
         {bestIndividual && bestIndividual.length > 0 && (
           <div>
@@ -612,7 +685,7 @@ export function AlgoritmosGenetico() {
             <pre>{matrixToString(bestIndividual)}</pre>
           </div>
         )}
-        </div>
+        </div> */}
       </div>
       
       

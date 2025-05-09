@@ -2,14 +2,18 @@
   "name": "reconstruccion",
   "private": true,
   "version": "0.0.0",
+  "homepage": "https://github.com/RainBWP/TecnincasDeIA",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "vite build && gh-pages -d dist"
   },
   "dependencies": {
+    "@tensorflow/tfjs": "^4.22.0",
+    "gh-pages": "^6.3.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.0"
