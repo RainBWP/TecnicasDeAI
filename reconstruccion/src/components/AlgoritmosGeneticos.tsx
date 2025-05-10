@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import GeneticoFileShow from './GeneticoFileShow';
 import './AlgoritmosGeneticos.css'
 
@@ -6,13 +6,23 @@ import './AlgoritmosGeneticos.css'
 type Individual = number[][]; // Un individuo es una matriz 2D de 0s y 1s
 type Population = Individual[]; // Una población es un conjunto de individuos
 
-// Interfaz para parámetros configurables del algoritmo genético
+/* // Interfaz para parámetros configurables del algoritmo genético
 interface GeneticParams {
   populationSize: number;
   maxGenerations: number;
   crossoverRate: number;
   mutationRate: number;
   tournamentSize: number;
+} */
+
+// Interfaz para Memetico Algorithm
+interface MemeticoParams {
+  populationSize: number;
+  maxGenerations: number;
+  mutationRate: number;
+  crossoverRate: number;
+  noiseRate: number;
+  maxIntentos: number;
 }
 
 // Interfaz para las estadísticas
@@ -27,18 +37,27 @@ export function AlgoritmosGenetico() {
   // Estados para los archivos
   const [baseFile, setBaseFile] = useState<File | null>(null);
   const [resultFile, setResultFile] = useState<File | null>(null);
-  const [baseContent, setBaseContent] = useState<string>('');
-  const [resultContent, setResultContent] = useState<string>('');
+  const [, setBaseContent] = useState<string>('');
+  const [, setResultContent] = useState<string>('');
   const [baseMatrix, setBaseMatrix] = useState<number[][]>([]);
   const [resultMatrix, setResultMatrix] = useState<number[][]>([]);
   
-  // Estados para el algoritmo genético
+/*   // Estados para el algoritmo genético
   const [params, setParams] = useState<GeneticParams>({
     populationSize: 100,
     maxGenerations: 500,
     crossoverRate: 0.8,
     mutationRate: 0.02,
     tournamentSize: 3
+  }); */
+
+  const [memeticoParams, setMemeticoParams] = useState<MemeticoParams>({
+    populationSize: 20,
+    maxGenerations: 1000,
+    mutationRate: 0.01,
+    crossoverRate: 0.8,
+    noiseRate: 0.5,
+    maxIntentos: 10
   });
   
   // Estados para los resultados
@@ -49,7 +68,6 @@ export function AlgoritmosGenetico() {
   const [statistics, setStatistics] = useState<Statistics[]>([]);
   const [outputContent, setOutputContent] = useState<string>('');
   const [generationsWithNoImprovement, setGenerationsWithNoImprovement] = useState<number>(0);
-  const [resetThreshold] = useState<number>(50); // Umbral para resetear (ajustable)
   
   // Referencias para cancelar la ejecución
   const runningRef = useRef<boolean>(false);
@@ -110,12 +128,168 @@ export function AlgoritmosGenetico() {
   // Manejar cambios en los parámetros
   const handleParamChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setParams({
-      ...params,
+    setMemeticoParams({
+      ...memeticoParams,
       [name]: parseFloat(value)
     });
   };
+
+
+  // Manejar cambios en los parámetros de Memetico
+  const runMemeticoAlgorithm = async () => {
+    if (!resultMatrix.length) {
+      alert("Por favor, carga el archivo resultado primero.");
+      return;
+    }
+
+    // Validar para UI
+    setIsRunning(true);
+    runningRef.current = true;
+    setStatistics([]);
+    setCurrentGeneration(0);
+
+    try {
+      let poblacion = initializePopulation(memeticoParams.populationSize, resultMatrix, baseMatrix);
+      let fitnessScores: number[] = [];
+      let mejorIndividuoEncontrado: Individual = poblacion[0];
+      let mejorFitnessEncontrado = 0;
+      let estadisticasGeneracion: Statistics[] = [];
+
+      let nuevaPoblacion: Population = [];
+      let padre1: Individual;
+      let padre2: Individual;
+      let off1: Individual;
+      let off2: Individual;
+      let fitnessOff1: number;
+      let fitnessOff2: number;
+
+
+      // Empezar memetico
+      for (let gen = 0; gen < memeticoParams.maxGenerations && runningRef.current; gen++) {
+        // Evaluar población
+        fitnessScores = evaluatePopulation(poblacion, resultMatrix);
+
+        // Encontrar el mejor y el peor individuo de esta generación
+        let mejorGenIndex = fitnessScores.indexOf(Math.max(...fitnessScores));
+        let peorGenIndex = fitnessScores.indexOf(Math.min(...fitnessScores));
+        let mejorGenFitness = fitnessScores[mejorGenIndex];
+        let peorGenFitness = fitnessScores[peorGenIndex];
+        let mejorGenIndividuo = poblacion[mejorGenIndex];
+        // let peorGenIndividuo = poblacion[peorGenIndex];
+
+        // Actualizar el mejor individuo global si es necesario
+        if (mejorGenFitness > mejorFitnessEncontrado) {
+          mejorFitnessEncontrado = mejorGenFitness;
+          mejorIndividuoEncontrado = cloneIndividual(mejorGenIndividuo);
+          setGenerationsWithNoImprovement(0);
+        } else {
+          const newGenerationsWithNoImprovement = generationsWithNoImprovement + 1;
+          setGenerationsWithNoImprovement(newGenerationsWithNoImprovement);
+        }
+
+        // Resetear nueva población
+        nuevaPoblacion = [];
+
+        // Mantener el elitismo (mejor individuo pasa directamente)
+        nuevaPoblacion.push(cloneIndividual(mejorGenIndividuo));
+
+        while (nuevaPoblacion.length < memeticoParams.populationSize) {
+          // 3. Utilizar torneo binario para seleccionar padres
+          padre1 = binaryTournamentSelection(poblacion, fitnessScores);
+          padre2 = binaryTournamentSelection(poblacion, fitnessScores);
   
+          // 4. Aplicar operador de cruce para crear descendencia
+          off1 = crossover(padre1, padre2, memeticoParams.crossoverRate); // Usando tasa de cruce 0.8
+          off2 = crossoverSinglePoint(padre1, padre2);
+  
+          // 5. Aplicar mutación a Off1 y Off2
+          mutacion(off1, memeticoParams.mutationRate);
+          mutacion(off2, memeticoParams.mutationRate);
+  
+          // 6. Evaluar Off1 y Off2
+          fitnessOff1 = calcularFitness(off1, resultMatrix);
+          fitnessOff2 = calcularFitness(off2, resultMatrix);
+  
+          // 7-12. Para cada descendiente, invocar mecanismo adaptativo PLS
+          const offspring = [
+            { individual: off1, fitness: fitnessOff1 },
+            { individual: off2, fitness: fitnessOff2 }
+          ];
+  
+          for (const off of offspring) {
+            // 8. Invocar mecanismo adaptativo PLS
+            // Si el descendiente es mejor que el peor, PLS = 1, de lo contrario PLS = 0.0625
+            const pls = off.fitness > peorGenFitness ? 1 : 0.0625;
+  
+            // 9-11. Si PLS cumple la condición, realizar optimización de meme
+            if (Math.random() < pls) {
+              // 10. Realizar optimización de meme para el descendiente
+              memeOptimization(off.individual, resultMatrix);
+              
+              // Reevaluar después de la optimización
+              off.fitness = calcularFitness(off.individual, resultMatrix);
+            }
+  
+            // 13. Emplear reemplazo estándar para Off1 y Off2
+            // Solo agregamos si aún no hemos completado la población
+            if (nuevaPoblacion.length < memeticoParams.populationSize) {
+              nuevaPoblacion.push(off.individual);
+            } else {
+              // Si la nueva población está llena, reemplazamos al peor individuo
+              if (off.fitness > fitnessScores[peorGenIndex]) {
+                nuevaPoblacion[peorGenIndex] = off.individual;
+                fitnessScores[peorGenIndex] = off.fitness;
+                peorGenIndex = fitnessScores.indexOf(Math.min(...fitnessScores));
+                peorGenFitness = fitnessScores[peorGenIndex];
+                mejorGenIndex = fitnessScores.indexOf(Math.max(...fitnessScores));
+                mejorGenFitness = fitnessScores[mejorGenIndex];
+                mejorGenIndividuo = poblacion[mejorGenIndex];
+              }
+            }
+          }
+        }
+
+        // Reemplazar la población con la nueva generación
+        poblacion = nuevaPoblacion;
+
+        // Calcular estadísticas
+        fitnessScores = evaluatePopulation(poblacion, resultMatrix);
+        const avgFitness = fitnessScores.reduce((sum, fit) => sum + fit, 0) / fitnessScores.length;
+        const variance = fitnessScores.reduce((sum, fit) => sum + Math.pow(fit - avgFitness, 2), 0) / fitnessScores.length;
+        const stdDevFitness = Math.sqrt(variance);
+
+        // Agregar estadísticas de esta generación
+        const genStats: Statistics = {
+          generation: gen + 1,
+          bestFitness: mejorGenFitness,
+          avgFitness,
+          stdDevFitness
+        };
+        estadisticasGeneracion.push(genStats);
+
+        // Actualizar UI
+        setCurrentGeneration(gen + 1);
+        setBestFitness(mejorFitnessEncontrado);
+        setBestIndividual(mejorIndividuoEncontrado);
+        setStatistics([...estadisticasGeneracion]);
+
+        // Esperar brevemente para no bloquear la UI
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        // Condición de terminación temprana si alcanzamos fitness perfecto
+        if (mejorGenFitness === 1) {
+          break;
+        }
+
+        // 15. Retornar el mejor cromosoma
+        setOutputContent(matrixToString(mejorIndividuoEncontrado));
+      }
+    } finally {
+      setIsRunning(false);
+      runningRef.current = false;
+    }
+  }
+/*   
   // Ejecutar el algoritmo genético
   const runGeneticAlgorithm = async () => {
     if (!resultMatrix.length) {
@@ -237,7 +411,7 @@ export function AlgoritmosGenetico() {
       setIsRunning(false);
       runningRef.current = false;
     }
-  };
+  }; */
   
   // Detener el algoritmo
   const stopAlgorithm = () => {
@@ -245,22 +419,47 @@ export function AlgoritmosGenetico() {
   };
   
   // Inicializar población
-  const initializePopulation = (size: number, targetMatrix: number[][]): Population => {
-    const rows = targetMatrix.length;
-    const cols = targetMatrix[0].length;
+  const initializePopulation = (size: number, targetMatrix: number[][], baseMatrix: number[][]): Population => {
+    const resultRows = targetMatrix.length;
+    const resultCols = targetMatrix[0].length;
+    const baseRows = baseMatrix.length;
+    const baseCols = baseMatrix[0].length;
     const population: Population = [];
+    const noise = memeticoParams.noiseRate; // Ruido para la inicialización
     
-    for (let i = 0; i < size; i++) {
-      const individual: Individual = [];
-      for (let r = 0; r < rows; r++) {
-        individual[r] = [];
-        for (let c = 0; c < cols; c++) {
-          // Inicializar con valores aleatorios (0 o 1)
-          individual[r][c] = Math.random() < 0.5 ? 0 : 1;
+    if (resultRows !== baseRows || resultCols !== baseCols) {
+      console.error("Las matrices de entrada no tienen las mismas dimensiones. Se usan aleatorios.");
+      for (let i = 0; i < size; i++) {
+        const individual: Individual = [];
+        for (let r = 0; r < resultRows; r++) {
+          individual[r] = [];
+          for (let c = 0; c < resultCols; c++) {
+            // Inicializar con valores aleatorios (0 o 1)
+            individual[r][c] = Math.random() < 0.5 ? 0 : 1;
+          }
         }
+        population.push(individual);
       }
-      population.push(individual);
+    } else {
+      // Si las dimensiones son iguales, inicializar con la matriz base
+      for (let i = 0; i < size; i++) {
+        const individual: Individual = [];
+        for (let r = 0; r < resultRows; r++) {
+          individual[r] = [];
+          for (let c = 0; c < resultCols; c++) {
+            // Decidir si usar el valor de la matriz base o ruido
+            if (Math.random() < noise) {
+              individual[r][c] = baseMatrix[r][c] === 0 ? 1 : 0; // Invertir el bit
+            } else {
+              individual[r][c] = baseMatrix[r][c]; // Usar el valor de la matriz base
+            }
+          }
+        }
+        population.push(individual);
+      }
     }
+    
+    
     
     return population;
   };
@@ -286,58 +485,6 @@ export function AlgoritmosGenetico() {
     return matches / totalCells;
   };
   
-  // Evolucionar la población
-  const evolvePopulation = (
-    population: Population, 
-    fitnessScores: number[], 
-    crossoverRate: number, 
-    mutationRate: number, 
-    tournamentSize: number
-  ): Population => {
-    const newPopulation: Population = [];
-    
-    
-    // Generar la nueva población mediante selección, cruce y mutación
-    while (newPopulation.length < population.length) {
-      const padre1 = tournamentSelection(population, fitnessScores, tournamentSize);
-      const padre2 = ruleta(population, fitnessScores);
-
-      const offspring = crossover(padre1, padre2, crossoverRate);
-
-      mutacion(offspring, mutationRate);
-
-      const offspring2 = crossoverSinglePoint(padre1, padre2);
-
-      mutacion(offspring2, mutationRate);
-
-      newPopulation.push(offspring);
-      if (newPopulation.length < population.length) {
-      newPopulation.push(offspring2);
-      }
-    }
-    return newPopulation;
-  };
-  
-  // Selección por torneo
-  const tournamentSelection = (
-    population: Population, 
-    fitnessScores: number[], 
-    tournamentSize: number
-  ): Individual => {
-    let bestIndex = Math.floor(Math.random() * population.length);
-    let bestFitness = fitnessScores[bestIndex];
-    
-    for (let i = 1; i < tournamentSize; i++) {
-      const randomIndex = Math.floor(Math.random() * population.length);
-      if (fitnessScores[randomIndex] > bestFitness) {
-        bestIndex = randomIndex;
-        bestFitness = fitnessScores[randomIndex];
-      }
-    }
-    
-    return cloneIndividual(population[bestIndex]);
-  };
-  
   // Operador de cruce
   const crossover = (padre1: Individual, padre2: Individual, crossoverRate: number): Individual => {
     if (Math.random() > crossoverRate) {
@@ -360,10 +507,13 @@ export function AlgoritmosGenetico() {
   // Operador de mutación
   const mutacion = (individual: Individual, mutationRate: number): void => {
     for (let i = 0; i < individual.length; i++) {
-      for (let j = 0; j < individual[i].length; j++) {
-        if (Math.random() < mutationRate) {
-          // Invertir el bit
-          individual[i][j] = individual[i][j] === 0 ? 1 : 0;
+      if (Math.random() < memeticoParams.noiseRate) {
+        // Aplicar ruido a la fila completa
+        for (let j = 0; j < individual[i].length; j++) {
+          if (Math.random() < mutationRate) {
+            // Invertir el bit
+            individual[i][j] = individual[i][j] === 0 ? 1 : 0;
+          }
         }
       }
     }
@@ -391,34 +541,72 @@ export function AlgoritmosGenetico() {
     return hijo;
   };
 
-  // Operador Ruleta 
-  const ruleta = (population: Population,
-    fitnessScores: number[]
-  ): Individual => {
-    const totalFitness = fitnessScores.reduce((sum, fit) => sum + fit, 0);
-    const randomValue = Math.random() * totalFitness;
-    
-    let cumulativeSum = 0;
-    for (let i = 0; i < fitnessScores.length; i++) {
-      cumulativeSum += fitnessScores[i];
-      if (cumulativeSum >= randomValue) {
-        return cloneIndividual(population[i]);
-      }
+  // Función de selección por torneo de 4 individuos (luchando 2 y 2)
+  const binaryTournamentSelection = (population: Population, fitnessScores: number[]): Individual => {
+    // Seleccionar cuatro individuos al azar
+    const idx1 = Math.floor(Math.random() * population.length);
+    let idx2 = Math.floor(Math.random() * population.length);
+    while (idx2 === idx1 && population.length > 1) {
+      idx2 = Math.floor(Math.random() * population.length);
     }
-    
-    return cloneIndividual(population[fitnessScores.length - 1]); // En caso de error
+
+    const idx3 = Math.floor(Math.random() * population.length);
+    let idx4 = Math.floor(Math.random() * population.length);
+    while ((idx4 === idx3 || idx4 === idx1 || idx4 === idx2) && population.length > 1) {
+      idx4 = Math.floor(Math.random() * population.length);
+    }
+
+    // Realizar torneo entre los pares
+    const winner1 = fitnessScores[idx1] > fitnessScores[idx2] ? idx1 : idx2;
+    const winner2 = fitnessScores[idx3] > fitnessScores[idx4] ? idx3 : idx4;
+
+
+    // Retornar el mejor entre los ganadores
+    return fitnessScores[winner1] > fitnessScores[winner2]
+      ? cloneIndividual(population[winner1])
+      : cloneIndividual(population[winner2]);
   };
 
-  // Crear individuo aleatorio
-  const createRandomIndividual = (rows: number, cols: number): Individual => {
-    const individual: Individual = [];
-    for (let i = 0; i < rows; i++) {
-      individual[i] = [];
-      for (let j = 0; j < cols; j++) {
-        individual[i][j] = Math.random() < 0.5 ? 0 : 1;
+  // Función de optimización de meme (búsqueda local)
+  const memeOptimization = (individual: Individual, target: Individual): void => {
+    // Implementación de una búsqueda local que invierte bits en una fila completa
+    const rows = individual.length;
+    const cols = individual[0].length;
+    
+    // Número de intentos para mejorar
+    const maxAttempts = memeticoParams.maxIntentos;
+    let attempts = 0;
+    
+    // Fitness actual
+    let currentFitness = calcularFitness(individual, target);
+    
+    while (attempts < maxAttempts) {
+      // Seleccionar posición aleatoria para modificar
+      const row = Math.floor(Math.random() * rows);
+      const col = Math.floor(Math.random() * cols);
+      
+      // Invertir el bit en esa posición
+      individual[row][col] = individual[row][col] === 0 ? 1 : 0;
+      
+      // Calcular nuevo fitness
+      const newFitness = calcularFitness(individual, target);
+      
+      
+      // Si empeora, revertir el cambio
+      if (newFitness <= currentFitness) {
+        individual[row][col] = individual[row][col] === 0 ? 1 : 0;
+        attempts++;
+      } else {
+        // Si mejora, actualizar fitness y reiniciar intentos
+        currentFitness = newFitness;
+        attempts = 0; // Reiniciar intentos para permitir más mejoras
+        // Si alcanzamos el fitness perfecto, terminar
+        if (currentFitness === 1) {
+          setBestIndividual(cloneIndividual(individual));
+          break;
+        }
       }
     }
-    return individual;
   };
   
   // Clonar un individuo para evitar referencias
@@ -498,10 +686,11 @@ export function AlgoritmosGenetico() {
             <input 
               type="number" 
               name="populationSize" 
-              value={params.populationSize} 
+              value={memeticoParams.populationSize} 
               onChange={handleParamChange}
               disabled={isRunning}
               min="10"
+              inputMode='numeric'
             />
           </div>
           <div>
@@ -509,23 +698,11 @@ export function AlgoritmosGenetico() {
             <input 
               type="number" 
               name="maxGenerations" 
-              value={params.maxGenerations} 
+              value={memeticoParams.maxGenerations} 
               onChange={handleParamChange}
               disabled={isRunning}
               min="1"
-            />
-          </div>
-          <div>
-            <label>Tasa de cruce</label>
-            <input 
-              type="number" 
-              name="crossoverRate" 
-              value={params.crossoverRate} 
-              onChange={handleParamChange}
-              disabled={isRunning}
-              min="0"
-              max="1"
-              step="0.01"
+              inputMode='numeric'
             />
           </div>
           <div>
@@ -533,23 +710,55 @@ export function AlgoritmosGenetico() {
             <input 
               type="number" 
               name="mutationRate" 
-              value={params.mutationRate} 
+              value={memeticoParams.mutationRate} 
               onChange={handleParamChange}
               disabled={isRunning}
               min="0"
               max="1"
               step="0.001"
+              inputMode="numeric"
             />
           </div>
           <div>
-            <label>Tamaño de torneo</label>
+            <label>Ruido en Base</label>
             <input 
               type="number" 
-              name="tournamentSize" 
-              value={params.tournamentSize} 
+              name="noiseRate" 
+              value={memeticoParams.noiseRate} 
               onChange={handleParamChange}
               disabled={isRunning}
-              min="2"
+              min="0"
+              max="1"
+              step="0.001"
+              inputMode="numeric"
+            />
+          </div>
+          <div>
+            <label>Maximo de Intentos en Meme</label>
+            <input 
+              type="number" 
+              name="maxIntentos" 
+              value={memeticoParams.maxIntentos} 
+              onChange={handleParamChange}
+              disabled={isRunning}
+              min="0"
+              max="1000"
+              step="1"
+              inputMode='numeric'
+            />
+          </div>
+          <div>
+            <label>Tasa de Cruza</label>
+            <input 
+              type="number" 
+              name="crossoverRate" 
+              value={memeticoParams.crossoverRate} 
+              onChange={handleParamChange}
+              disabled={isRunning}
+              min="0"
+              max="1"
+              step="0.001"
+              inputMode='numeric'
             />
           </div>
         </div>
@@ -558,7 +767,7 @@ export function AlgoritmosGenetico() {
       {/* Botones de control */}
       <div className='botones-ejecutar'>
         <button 
-          onClick={runGeneticAlgorithm}
+          onClick={runMemeticoAlgorithm}
           disabled={isRunning || !resultFile}
         >
           Ejecutar Algoritmo
@@ -645,7 +854,8 @@ export function AlgoritmosGenetico() {
           {isRunning && (
             <div>
               <p>Generación actual: {currentGeneration}</p>
-              <p>Mejor aptitud: {bestFitness.toFixed(4)}</p>
+              <p>Mejor aptitud: {bestFitness}</p>
+              <p>Media de Generacion Actual : {statistics[currentGeneration-1].avgFitness.toFixed(4)}</p>
             </div>
           )}
           
@@ -661,14 +871,27 @@ export function AlgoritmosGenetico() {
                   </tr>
                 </thead>
                 <tbody>
-                  {statistics.map((stat, index) => (
-                    <tr key={index}>
+                    {statistics.slice(0, 5).map((stat, index) => (
+                    <tr key={`first-${index}`}>
                       <td>{stat.generation}</td>
-                      <td>{stat.bestFitness.toFixed(4)}</td>
+                      <td>{stat.bestFitness.toFixed(8)}</td>
                       <td>{stat.avgFitness.toFixed(4)}</td>
                       <td>{stat.stdDevFitness.toFixed(4)}</td>
                     </tr>
-                  ))}
+                    ))}
+                    {statistics.length > 10 && (
+                    <tr>
+                      <td colSpan={4} style={{ textAlign: 'center' }}>...</td>
+                    </tr>
+                    )}
+                    {statistics.slice(-5).map((stat, index) => (
+                    <tr key={`last-${index}`}>
+                      <td>{stat.generation}</td>
+                      <td>{stat.bestFitness.toFixed(8)}</td>
+                      <td>{stat.avgFitness.toFixed(4)}</td>
+                      <td>{stat.stdDevFitness.toFixed(4)}</td>
+                    </tr>
+                    ))}
                 </tbody>
               </table>
             </div>
