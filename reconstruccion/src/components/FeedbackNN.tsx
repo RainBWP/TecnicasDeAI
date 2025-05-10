@@ -16,7 +16,6 @@ interface ExperimentResult {
 }
 
 function FeedbackNN() {
-    const [model, setModel] = useState<tf.Sequential | null>(null);
     const [trained, setTrained] = useState(false);
     const [dataset, setDataset] = useState<DataSet | null>(null);
     const [normalize, setNormalize] = useState<boolean>(true);
@@ -141,7 +140,7 @@ function FeedbackNN() {
         const allOutputs = dataset.outputs;
         
         // Normalizar datos si está habilitado
-        const [normalizedInputs, inputStats] = normalizeData(allInputs);
+        const [normalizedInputs, ] = normalizeData(allInputs);
         const [normalizedOutputs, outputStats] = normalizeData(allOutputs);
         
         // Preparar los datos para k-fold
