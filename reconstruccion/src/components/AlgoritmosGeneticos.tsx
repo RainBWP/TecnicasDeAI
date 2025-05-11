@@ -887,7 +887,6 @@ export function AlgoritmosGenetico() {
         <h2>Mejor Individuo</h2>
         {bestIndividual && bestIndividual.length > 0 && (
           <div>
-            <GeneticoFileShow matrix={bestIndividual} />
             <h3>Contenido:</h3>
             <pre>{matrixToString(bestIndividual)}</pre>
           </div>
