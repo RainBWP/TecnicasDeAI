@@ -40,7 +40,6 @@ function FeedbackNN() {
             if (content) {
                 const dataset = processData(content);
                 setDataset(dataset);
-                console.log("Datos cargados:", dataset);
             }
         };
         
@@ -224,7 +223,7 @@ function FeedbackNN() {
 
     return (
         <div className="simple-nn-container">
-            <h1>Red Neuronal con Validación Cruzada</h1>
+            <h1>Red Neuronal Feedback</h1>
             
             <div className="upload-section">
                 <h2>Cargar archivo de datos</h2>
@@ -235,12 +234,6 @@ function FeedbackNN() {
                     onChange={handleFileUpload}
                     className="file-input"
                 />
-                <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="upload-btn"
-                >
-                    Seleccionar archivo .txt
-                </button>
                 {fileName && <p>Archivo cargado: {fileName}</p>}
                 
                 {dataset && (
