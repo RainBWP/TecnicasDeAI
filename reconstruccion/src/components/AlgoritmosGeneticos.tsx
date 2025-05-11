@@ -3,8 +3,8 @@ import GeneticoFileShow from './GeneticoFileShow';
 import './AlgoritmosGeneticos.css'
 
 // Definición de tipos
-type Individual = number[][]; // Un individuo es una matriz 2D de 0s y 1s
-type Population = Individual[]; // Una población es un conjunto de individuos
+type Individual = number[][]; 
+type Population = Individual[]; 
 
 /* // Interfaz para parámetros configurables del algoritmo genético
 interface GeneticParams {
@@ -55,7 +55,7 @@ export function AlgoritmosGenetico() {
     populationSize: 20,
     maxGenerations: 1000,
     mutationRate: 0.01,
-    crossoverRate: 0.8,
+    crossoverRate: 0.4,
     noiseRate: 0.5,
     maxIntentos: 10
   });
@@ -199,7 +199,7 @@ export function AlgoritmosGenetico() {
           padre2 = binaryTournamentSelection(poblacion, fitnessScores);
   
           // 4. Aplicar operador de cruce para crear descendencia
-          off1 = crossover(padre1, padre2, memeticoParams.crossoverRate); // Usando tasa de cruce 0.8
+          off1 = crossover(padre1, padre2, memeticoParams.crossoverRate);
           off2 = crossoverSinglePoint(padre1, padre2);
   
           // 5. Aplicar mutación a Off1 y Off2
@@ -231,20 +231,8 @@ export function AlgoritmosGenetico() {
             }
   
             // 13. Emplear reemplazo estándar para Off1 y Off2
-            // Solo agregamos si aún no hemos completado la población
-            if (nuevaPoblacion.length < memeticoParams.populationSize) {
+            if (nuevaPoblacion.length < memeticoParams.populationSize && off.fitness > peorGenFitness) {
               nuevaPoblacion.push(off.individual);
-            } else {
-              // Si la nueva población está llena, reemplazamos al peor individuo
-              if (off.fitness > fitnessScores[peorGenIndex]) {
-                nuevaPoblacion[peorGenIndex] = off.individual;
-                fitnessScores[peorGenIndex] = off.fitness;
-                peorGenIndex = fitnessScores.indexOf(Math.min(...fitnessScores));
-                peorGenFitness = fitnessScores[peorGenIndex];
-                mejorGenIndex = fitnessScores.indexOf(Math.max(...fitnessScores));
-                mejorGenFitness = fitnessScores[mejorGenIndex];
-                mejorGenIndividuo = poblacion[mejorGenIndex];
-              }
             }
           }
         }
@@ -487,17 +475,12 @@ export function AlgoritmosGenetico() {
   
   // Operador de cruce
   const crossover = (padre1: Individual, padre2: Individual, crossoverRate: number): Individual => {
-    if (Math.random() > crossoverRate) {
-      return cloneIndividual(padre1);
-    }
-    
     const hijo: Individual = [];
     
     for (let i = 0; i < padre1.length; i++) {
       hijo[i] = [];
       for (let j = 0; j < padre1[i].length; j++) {
-        // Cruce uniforme: 50% de probabilidad para cada padre
-        hijo[i][j] = Math.random() < 0.5 ? padre1[i][j] : padre2[i][j];
+        hijo[i][j] = Math.random() < crossoverRate ? padre1[i][j] : padre2[i][j];
       }
     }
     
@@ -507,7 +490,7 @@ export function AlgoritmosGenetico() {
   // Operador de mutación
   const mutacion = (individual: Individual, mutationRate: number): void => {
     for (let i = 0; i < individual.length; i++) {
-      if (Math.random() < memeticoParams.noiseRate) {
+      if (Math.random() < mutationRate) {
         // Aplicar ruido a la fila completa
         for (let j = 0; j < individual[i].length; j++) {
           if (Math.random() < mutationRate) {
@@ -701,7 +684,8 @@ export function AlgoritmosGenetico() {
               value={memeticoParams.maxGenerations} 
               onChange={handleParamChange}
               disabled={isRunning}
-              min="1"
+              min="10"
+              step="5"
               inputMode='numeric'
             />
           </div>
@@ -729,7 +713,7 @@ export function AlgoritmosGenetico() {
               disabled={isRunning}
               min="0"
               max="1"
-              step="0.001"
+              step="0.1"
               inputMode="numeric"
             />
           </div>
@@ -757,7 +741,7 @@ export function AlgoritmosGenetico() {
               disabled={isRunning}
               min="0"
               max="1"
-              step="0.001"
+              step="0.01"
               inputMode='numeric'
             />
           </div>

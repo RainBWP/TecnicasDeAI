@@ -8,4 +8,15 @@ export default defineConfig({
     open: true,
     host: true,
   },
+  build: {
+    chunkSizeWarningLimit: 1000, // Aumentar límite a 1000kb
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'tensorflow': ['@tensorflow/tfjs'],
+          'vendor': ['react', 'react-dom', 'react-router-dom']
+        }
+      }
+    }
+  },
 })
