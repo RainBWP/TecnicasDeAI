@@ -9,8 +9,8 @@ function Main() {
             <h1>Inteligencia Artificial</h1>
             <p>Escoja Opcion a Usar</p>
             <div>
-                <button className="btn" onClick={() => navigate('/algoritmos-geneticos')}>Algoritmos Geneticos</button>
-                <button className="btn" onClick={() => navigate('/feedback-neural-network')}>Feedback Neural Network</button>
+                <button onClick={() => navigate('/algoritmos-geneticos')}>Algoritmos Geneticos</button>
+                <button onClick={() => navigate('/feedback-neural-network')}>Feedback Neural Network</button>
             </div>
         </div>
     )
