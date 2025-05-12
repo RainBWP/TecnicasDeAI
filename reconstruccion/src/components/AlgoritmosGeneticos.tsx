@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, use } from 'react';
+import { useNavigate } from 'react-router-dom';
 import GeneticoFileShow from './GeneticoFileShow';
 import './AlgoritmosGeneticos.css'
 
@@ -34,6 +35,7 @@ interface Statistics {
 }
 
 export function AlgoritmosGenetico() {
+  const navigate = useNavigate();
   // Estados para los archivos
   const [baseFile, setBaseFile] = useState<File | null>(null);
   const [resultFile, setResultFile] = useState<File | null>(null);
@@ -615,6 +617,10 @@ export function AlgoritmosGenetico() {
   return (
     <div>
       <h1>Algoritmo Genético</h1>
+      <button
+        onClick={() => navigate('/')} >
+        Regresar
+      </button>
       
       {/* Carga de archivos */}
       <div className='carga-archivos'>
