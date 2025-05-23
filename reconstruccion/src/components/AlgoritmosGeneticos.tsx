@@ -459,7 +459,7 @@ export function AlgoritmosGenetico() {
     return population.map(individual => calcularFitness(individual, target));
   };
   
-  // Calcular aptitud de un individuo (porcentaje de coincidencia)
+  // Calcular aptitud de un individuo (porcentaje de coincidencia) NUEVOOOOOOOO
   const calcularFitness = (individual: Individual, target: Individual): number => {
     let matches = 0;
     const totalCells = target.length * target[0].length;
@@ -472,7 +472,14 @@ export function AlgoritmosGenetico() {
       }
     }
     
-    return matches / totalCells;
+    const afinidad = matches / totalCells;
+
+    // Parámetros de la sigmoide
+    const k = 12;      // Controla la pendiente (ajusta para más o menos agresividad)
+    const x0 = 0.85;
+    // Ejemplo: escala logarítmica para que valores altos suban más rápido
+    // Escalar el valor sigmoide para que esté entre 0 y 1
+    return 1 / (1 + Math.exp(-k * (afinidad - x0)));
   };
   
   // Operador de cruce
@@ -787,16 +794,21 @@ export function AlgoritmosGenetico() {
 
         <h2>Vista Previa</h2>
         {resultMatrix.length > 0 && (
-          <div>
+            <div>
             {bestIndividual ? (
               <GeneticoFileShow 
               matrix={bestIndividual} 
-              modCellsize={4}/>
+              modCellsize={4}
+              />
             ) : (
               <p>Ejecute el algoritmo para ver resultados</p>
             )}
-            {bestFitness > 0 && <p><b>Fitness: </b> {bestFitness.toFixed(4)}</p>}
-          </div>
+            {bestFitness > 0 && (
+              <p>
+              <b>Fitness Sigmoide: </b> {(bestFitness * 100).toFixed(2)}%
+              </p>
+            )}
+            </div>
         )}
 
         {/* Estadísticas finales */}
@@ -871,7 +883,7 @@ export function AlgoritmosGenetico() {
                     ))}
                     {statistics.length > 10 && (
                     <tr>
-                      <td colSpan={4} style={{ textAlign: 'center' }}>...</td>
+                      <td colSpan={4}>...</td>
                     </tr>
                     )}
                     {statistics.slice(-5).map((stat, index) => (
