@@ -15,6 +15,12 @@ interface ExperimentResult {
   accuracy: number;
 }
 
+// Add interfaces for network configuration
+interface Layer {
+  neurons: number;
+  activation: string;
+}
+
 function FeedbackNN() {
   const [trained, setTrained] = useState(false);
   const [dataset, setDataset] = useState<DataSet | null>(null);
@@ -25,6 +31,15 @@ function FeedbackNN() {
   const [avgAccuracy, setAvgAccuracy] = useState<number | null>(null);
   const [fileName, setFileName] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  
+  // Actualizar para tener 3 capas fijas
+  const [hiddenLayers, setHiddenLayers] = useState<Layer[]>([
+    { neurons: 10, activation: 'relu' },
+    { neurons: 8, activation: 'relu' },
+    { neurons: 5, activation: 'sigmoid' }
+  ]);
+  const [learningRate, setLearningRate] = useState<number>(0.01);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Procesar archivo subido por el usuario
@@ -99,17 +114,20 @@ function FeedbackNN() {
   const createModel = (inputShape: number): tf.Sequential => {
     const model = tf.sequential();
 
-    // Capa de entrada (10 neuronas)
+    // Capa oculta 1 (con inputShape)
     model.add(tf.layers.dense({
-      units: 10,
+      units: hiddenLayers[0].neurons,
       inputShape: [inputShape],
-      activation: 'relu'
     }));
 
-    // Capa oculta (5 neuronas)
+    // Capa oculta 2
     model.add(tf.layers.dense({
-      units: 5,
-      activation: 'sigmoid'
+      units: hiddenLayers[1].neurons,
+    }));
+
+    // Capa oculta 3
+    model.add(tf.layers.dense({
+      units: hiddenLayers[2].neurons,
     }));
 
     // Capa de salida
@@ -120,12 +138,26 @@ function FeedbackNN() {
 
     // Compilar el modelo
     model.compile({
-      optimizer: tf.train.adam(0.01),
+      optimizer: tf.train.adam(learningRate),
       loss: 'meanSquaredError',
       metrics: ['mse']
     });
 
     return model;
+  };
+
+  // Modificar esta función para actualizar solo la activación
+  const updateLayerActivation = (index: number, activationType: string) => {
+    const newLayers = [...hiddenLayers];
+    newLayers[index].activation = activationType;
+    setHiddenLayers(newLayers);
+  };
+
+  // Función para actualizar el número de neuronas
+  const updateLayerNeurons = (index: number, neurons: number) => {
+    const newLayers = [...hiddenLayers];
+    newLayers[index].neurons = neurons;
+    setHiddenLayers(newLayers);
   };
 
   // Implementar k-fold cross validation
@@ -267,6 +299,56 @@ function FeedbackNN() {
               onChange={(e) => setKFolds(parseInt(e.target.value))}
             />
           </label>
+        </div>
+
+        <div>
+          <h2>Configuración de la Topología (3 Capas Ocultas)</h2>
+          <div>
+            <label>
+              Tasa de Aprendizaje:
+              <input 
+                type="number" 
+                min="0.0001" 
+                max="1" 
+                step="0.001" 
+                value={learningRate} 
+                onChange={(e) => setLearningRate(parseFloat(e.target.value))} 
+              />
+            </label>
+          </div>
+          
+          <h3>Configuración de Capas Ocultas</h3>
+          {hiddenLayers.map((layer, index) => (
+            <div key={index}>
+              <h4>Capa {index + 1}</h4>
+              <div>
+                <label>
+                  Neuronas:
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="100" 
+                    value={layer.neurons} 
+                    onChange={(e) => updateLayerNeurons(index, parseInt(e.target.value))} 
+                  />
+                </label>
+              </div>
+              <div>
+                <label>
+                  Función de Activación:
+                  <select 
+                    value={layer.activation} 
+                    onChange={(e) => updateLayerActivation(index, e.target.value)}
+                  >
+                    <option value="relu">ReLU</option>
+                    <option value="sigmoid">Sigmoid</option>
+                    <option value="tanh">Tanh</option>
+                    <option value="linear">Linear</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+          ))}
         </div>
 
         <button
