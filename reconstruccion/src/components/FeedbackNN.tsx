@@ -118,16 +118,19 @@ function FeedbackNN() {
     model.add(tf.layers.dense({
       units: hiddenLayers[0].neurons,
       inputShape: [inputShape],
+      activation: hiddenLayers[0].activation as any,
     }));
 
     // Capa oculta 2
     model.add(tf.layers.dense({
       units: hiddenLayers[1].neurons,
+      activation: hiddenLayers[1].activation as any,
     }));
 
     // Capa oculta 3
     model.add(tf.layers.dense({
       units: hiddenLayers[2].neurons,
+      activation: hiddenLayers[2].activation as any,
     }));
 
     // Capa de salida
